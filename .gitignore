@@ -16,3 +16,5 @@ build
 gradle/wrapper/gradle-wrapper.jar
 /distribution/*
 /distribution.video/*
+config.bat
+node_modules
