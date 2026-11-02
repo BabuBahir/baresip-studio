@@ -498,6 +498,17 @@ class BaresipService: Service() {
             Log.d(TAG, "Received onStartCommand action $action")
         }
 
+        val isFreshStart = !isStartReceived && !isServiceRunning
+
+        if (action != "Stop") {
+            if (isFreshStart) {
+                showStatusNotification()
+                isStartReceived = true
+            } else {
+                updateStatusNotification()
+            }
+        }
+
         when (action) {
 
             "Start" -> {
@@ -871,15 +882,7 @@ class BaresipService: Service() {
                 Log.e(TAG, "Unknown start action $action")
         }
 
-        if (action == "Start" || action == "Process Incoming MMS") {
-
-            if (isStartReceived || isServiceRunning) {
-                updateStatusNotification()
-                return START_STICKY
-            }
-
-            showStatusNotification()
-            isStartReceived = true
+        if (action != "Stop" && isFreshStart) {
 
             if (VERSION.SDK_INT < 31)
                 @Suppress("DEPRECATION")
@@ -973,10 +976,8 @@ class BaresipService: Service() {
 
             if (!aecAvailable) toast(getString(R.string.no_aec), Toast.LENGTH_LONG)
 
-            if (VERSION.SDK_INT >= 29) {
-                val baresipService = Intent(this, BaresipService::class.java)
-                baresipService.action = "Check Roles"
-                startService(baresipService)
+            if (VERSION.SDK_INT >= 29 && isNativeReady) {
+                addMobileUserAgent()
             }
         }
 
@@ -2024,8 +2025,9 @@ class BaresipService: Service() {
 
         registerTelephony()
         Api.net_debug()
-        postServiceEvent(ServiceEvent("started", arrayListOf(callActionUri), System.nanoTime()))
+        postServiceEvent(ServiceEvent("started", arrayListOf(callActionUri, callActionType), System.nanoTime()))
         callActionUri = ""
+        callActionType = ""
         Log.d(TAG, "Battery optimizations are ignored: " +
                 "${pm.isIgnoringBatteryOptimizations(packageName)}")
         Log.d(TAG, "Partial wake lock/wifi lock is held: " +
@@ -2519,7 +2521,7 @@ class BaresipService: Service() {
             return
         }
 
-        val rawNumber = peerUri.removePrefix("tel:").removePrefix("sip:").split("@")[0]
+        val rawNumber = peerUri.removePrefix("tel:").removePrefix("sip:").split("@")[0].replace("%23", "#")
         val number = Utils.uriUnescape(rawNumber).trim()
         if (number.isEmpty()) return
 
@@ -3289,7 +3291,10 @@ class BaresipService: Service() {
 
     private fun cleanService() {
         if (isServiceClean) return
+        isStartReceived = false
         pendingCallIntent = null
+        callActionUri = ""
+        callActionType = ""
         if (simStateReceiverRegistered) {
             try {
                 unregisterReceiver(simStateReceiver)
@@ -3626,6 +3631,7 @@ class BaresipService: Service() {
         var logLevel = 2
         var sipTrace = false
         var callActionUri = ""
+        var callActionType = ""
         var isMainVisible = false
         var isMicMuted = false
         var isRecOn = false

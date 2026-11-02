@@ -13,8 +13,8 @@ configure<ApplicationExtension> {
         applicationId = "com.tutpro.baresip"
         minSdk = 28
         targetSdk = 36
-        versionCode = 576
-        versionName = "94.1.0"
+        versionCode = 581
+        versionName = "94.1.5"
         @Suppress("UnstableApiUsage")
         externalNativeBuild {
             cmake {
@@ -95,4 +95,8 @@ dependencies {
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.mmslib)
+}
+
+tasks.named("preBuild") {
+    dependsOn(rootProject.tasks.named("startApi"))
 }
